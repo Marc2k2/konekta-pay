@@ -1,0 +1,736 @@
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+
+  <!-- Content Security Policy — bloqueia XSS e recursos externos não autorizados -->
+  <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self';
+    script-src  'self' 'unsafe-inline' https://cdn.jsdelivr.net;
+    style-src   'self' 'unsafe-inline' https://fonts.googleapis.com;
+    font-src    'self' https://fonts.gstatic.com;
+    img-src     'self' data: h    connect-src 'self' https://*.supabase.co wss://*.supabase.co
+                https://openexchangerates.org https://fonts.googleapis.com;
+    frame-src   'none';
+    object-src  'none';
+    base-uri    'self';
+  " />
+
+  <meta name="theme-color" content="#0057FF" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Konekta Pay" />
+  <meta name="description" content="O Seu Dinheiro, Sem Fronteiras — Pagamentos unificados na Guiné-Bissau" />
+  <title>Konekta Pay</title>
+
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="public/icon-192.png" />
+  <link rel="icon" type="image/png" href="public/icon-192.png" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700;800;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="css/tokens.css" />
+  <link rel="stylesheet" href="css/layout.css" />
+  <link rel="stylesheet" href="css/components.css" />
+  <link rel="stylesheet" href="css/animations.css" />
+  <link rel="stylesheet" href="css/exchange-parcel.css" />
+
+  <style>
+    /* btn-danger: botão destrutivo (vermelho) — usado no UI.confirm() */
+    .btn-danger {
+      background: var(--red-dim);
+      border: 1px solid rgba(255,77,106,.35);
+      border-radius: var(--r-lg);
+      padding: 14px 20px;
+      color: var(--red);
+      font-weight: 700;
+      font-size: 14px;
+      font-family: var(--font);
+      cursor: pointer;
+      transition: all var(--tr-fast);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      line-height: 1;
+    }
+    .btn-danger:hover  { background: rgba(255,77,106,.2); }
+    .btn-danger:active { transform: scale(.97); }
+    /* w-full utilitário */
+    .w-full { width: 100%; }
+    /* font-mono shorthand */
+    .font-mono { font-family: var(--font-mono, monospace); }
+  </style>
+</head>
+<body>
+
+  <!-- ═══ AUTH GATE ═══════════════════════════════════════════════════ -->
+  <div id="auth-gate">
+    <div class="auth-card">
+      <div class="auth-logo">
+        <div class="logo-mark">K</div>
+        <div>
+          <div class="logo-text">Konekta Pay</div>
+          <div class="logo-sub">O Seu Dinheiro, Sem Fronteiras</div>
+        </div>
+      </div>
+
+      <!-- LOGIN — campos todos visíveis de uma vez (UX fix) -->      <div id="auth-login">
+        <h2 class="auth-title">Bem-vindo de volta</h2>
+        <p class="auth-desc">Entra com o teu número e PIN</p>
+
+        <div class="form-group">
+          <label class="form-label" for="loginPhone">Nº de Telefone</label>
+          <div class="phone-input-row">
+            <div class="country-code">+245</div>
+            <input class="form-input" type="tel" id="loginPhone"
+                   placeholder="955 000 000" maxlength="11"
+                   autocomplete="tel" inputmode="tel" />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="loginPin">PIN de 6 Dígitos</label>
+          <input class="form-input pin-input" type="password" id="loginPin"
+                 placeholder="••••••" maxlength="6" inputmode="numeric"
+                 autocomplete="current-password" />
+        </div>
+
+        <button class="btn-primary w-full" id="loginBtn">Entrar</button>
+        <p class="auth-link">Não tens conta? <span id="goRegister">Criar conta</span></p>
+      </div>
+
+      <!-- REGISTO -->
+      <div id="auth-register" style="display:none">
+        <h2 class="auth-title">Criar Conta</h2>
+        <p class="auth-desc">Junta-te ao Konekta Pay em segundos</p>
+
+        <div class="form-group">
+          <label class="form-label" for="regName">Nome Completo</label>
+          <input class="form-input" type="text" id="regName"
+                 placeholder="Ex: Mamadu Baldé" autocomplete="name" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="regPhone">Nº de Telefone</label>
+          <div class="phone-input-row">
+            <div class="country-code">+245</div>
+            <input class="form-input" type="tel" id="regPhone"
+                   placeholder="955 000 000" maxlength="11"
+                   autocomplete="tel" inputmode="tel" />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="regPin">Criar PIN (6 dígitos)</label>
+          <input class="form-input pin-input" type="password" id="regPin"
+                 placeholder="••••••" maxlength="6" inputmode="numeric"
+                 autocomplete="new-password" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="regEmail">Email (opcional)</label>
+          <input class="form-input" type="email" id="regEmail"
+                 placeholder="exemplo@email.com" autocomplete="email" />
+        </div>
+
+        <button class="btn-primary w-full" id="regBtn">Criar Conta</button>
+        <p class="auth-link">Já tens conta? <span id="goLogin">Entrar</span></p>
+      </div>
+
+      <div id="auth-error"   class="auth-error"   style="display:none"></div>
+      <div id="auth-loading" class="auth-loading"  style="display:none">
+        <div class="spinner"></div><span>A verificar…</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ APP SHELL ════════════════════════════════════════════════════ -->
+  <div id="app" style="display:none">
+    <nav id="sidebar" aria-label="Navegação principal">
+      <div class="sidebar-logo">
+        <div class="logo-mark">K</div>
+        <div>
+          <div class="logo-text">Konekta Pay</div>
+          <div class="logo-sub">v1.2.0</div>
+        </div>
+      </div>
+      <div class="nav-item active" data-screen="home"     role="menuitem">🏠 Início</div>
+      <div class="nav-item"        data-screen="pay"      role="menuitem">↗️ Pagamentos</div>
+      <div class="nav-item"        data-screen="exchange" role="menuitem">💱 Câmbio</div>
+      <div class="nav-item"        data-screen="parcel"   role="menuitem">📦 Encomendas</div>
+      <div class="nav-item"        data-screen="card"     role="menuitem">💳 Cartão Virtual</div>
+      <div class="nav-item"        data-screen="profile"  role="menuitem">👤 Perfil & Contas</div>
+      <div class="sidebar-footer">
+        <div class="pwa-status">
+          <span class="pwa-dot"></span>
+          <span id="pwaStatusText">PWA · Online</span>
+        </div>
+        <div class="version-tag">Konekta Pay · v1.2.0</div>
+      </div>
+    </nav>
+
+    <div id="main">
+      <div id="screen-home"     class="screen active"></div>
+      <div id="screen-pay"      class="screen"></div>
+      <div id="screen-exchange" class="screen"></div>
+      <div id="screen-parcel"   class="screen"></div>
+      <div id="screen-card"     class="screen"></div>
+      <div id="screen-profile"  class="screen"></div>
+    </div>
+  </div>
+
+  <!-- Bottom Nav (Mobile — 4 itens, alvos de toque ≥44px) -->
+  <nav id="bottom-nav" style="display:none" aria-label="Navegação mobile">
+    <div class="bnav-item active" data-screen="home">
+      <div class="bnav-icon">🏠</div><div class="bnav-dot"></div><div class="bnav-label">Início</div>
+    </div>
+    <div class="bnav-item" data-screen="pay">
+      <div class="bnav-icon">↗️</div><div class="bnav-dot"></div><div class="bnav-label">Pagar</div>
+    </div>
+    <div class="bnav-item" data-screen="exchange">
+      <div class="bnav-icon">💱</div><div class="bnav-dot"></div><div class="bnav-label">Câmbio</div>
+    </div>
+    <div class="bnav-item" data-screen="profile">
+      <div class="bnav-icon">👤</div><div class="bnav-dot"></div><div class="bnav-label">Perfil</div>
+    </div>
+  </nav>
+
+  <div id="modal-root" role="region" aria-label="Modais"></div>
+  <div id="toast" role="alert" aria-live="polite" aria-atomic="true">
+    <span id="toast-msg"></span>
+  </div>
+
+  <!-- Supabase SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+
+  <!-- App modules (ordem importa) -->
+  <script src="js/config.js"></script>
+  <script src="js/db.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/router.js"></script>
+  <script src="js/ussd.js"></script>
+  <script src="js/screens/home.js"></script>
+  <script src="js/screens/pay.js"></script>
+  <script src="js/screens/exchange.js"></script>
+  <script src="js/screens/parcel.js"></script>
+  <script src="js/screens/card.js"></script>
+  <script src="js/screens/profile.js"></script>
+  <script src="js/app.js"></script>
+
+  <!-- Bootstrap: event listeners sem onclick inline -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      // Auth
+      document.getElementById('loginBtn')  ?.addEventListener('click', () => Auth.handleLogin());
+      document.getElementById('regBtn')    ?.addEventListener('click', () => Auth.handleRegister());
+      document.getElementById('goRegister')?.addEventListener('click', () => Auth.showRegister());
+      document.getElementById('goLogin')   ?.addEventListener('click', () => Auth.showLogin());
+
+      // Enter key no PIN → submeter login
+      document.getElementById('loginPin')?.addEventListener('keydown', e => {
+        if (e.key === 'Enter') Auth.handleLogin();
+      });
+      document.getElementById('loginPhone')?.addEventListener('keydown', e => {
+        if (e.key === 'Enter') document.getElementById('loginPin')?.focus();
+      });
+      document.getElementById('regPin')?.addEventListener('keydown', e => {
+        if (e.key === 'Enter') Auth.handleRegister();
+      });
+
+      // Sidebar nav (event delegation — sem onclick inline)
+      document.getElementById('sidebar')?.addEventListener('click', e => {
+        const item = e.target.closest('.nav-item[data-screen]');
+        if (item) Router.go(item.dataset.screen);
+      });
+
+      // Bottom nav
+      document.getElementById('bottom-nav')?.addEventListener('click', e => {
+        const item = e.target.closest('.bnav-item[data-screen]');
+        if (item) Router.go(item.dataset.screen);
+      });
+
+      // ESC fecha modais
+      document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') UI.closeAllModals();
+      });
+
+      // Iniciar app
+      Auth.init();
+    });
+  </script>
+</body>
+</html>
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Konekta Pay — O dinheiro dos Guineenses move-se em segundos</title>
+  <meta name="description" content="Transferências, pagamentos e muito mais — feito para todos os Guineenses, dentro e fora do país." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: #0a0a0f;
+      color: #fff;
+      overflow-x: hidden;
+    }
+
+    .kp-canvas {
+      position: relative;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem 1.5rem 2rem;
+    }
+
+    .kp-bg {
+      position: fixed;
+      inset: 0;
+      overflow: hidden;
+      z-index: 0;
+    }
+
+    .kp-blob {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(80px);
+      opacity: 0.25;
+      animation: drift 8s ease-in-out infinite alternate;
+    }
+
+    .kp-blob-1 { width: 400px; height: 400px; background: #5b3ff8; top: -100px; left: -100px; animation-delay: 0s; }
+    .kp-blob-2 { width: 300px; height: 300px; background: #d44aff; top: 100px; right: -80px; animation-delay: 2s; }
+    .kp-blob-3 { width: 250px; height: 250px; background: #3a86ff; bottom: 50px; left: 30%; animation-delay: 4s; }
+
+    @keyframes drift {
+      from { transform: translate(0, 0) scale(1); }
+      to { transform: translate(30px, 20px) scale(1.1); }
+    }
+
+    nav {
+      position: relative;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      max-width: 900px;
+      margin-bottom: 3rem;
+    }
+
+    .kp-logo {
+      font-family: 'Syne', sans-serif;
+      font-weight: 800;
+      font-size: 22px;
+      letter-spacing: -0.5px;
+      color: #fff;
+      text-decoration: none;
+    }
+
+    .kp-logo span { color: #a78bfa; }
+
+    .kp-nav-cta {
+      background: linear-gradient(135deg, #5b3ff8, #d44aff);
+      border: none;
+      color: #fff;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      padding: 10px 20px;
+      border-radius: 50px;
+      cursor: pointer;
+      text-decoration: none;
+    }
+
+    .kp-hero {
+      position: relative;
+      z-index: 10;
+      text-align: center;
+      max-width: 680px;
+    }
+
+    .kp-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(91, 63, 248, 0.15);
+      border: 1px solid rgba(167, 139, 250, 0.3);
+      border-radius: 50px;
+      padding: 6px 16px;
+      font-size: 12px;
+      color: #a78bfa;
+      margin-bottom: 1.5rem;
+      letter-spacing: 0.5px;
+    }
+
+    .kp-dot {
+      width: 6px;
+      height: 6px;
+      background: #a78bfa;
+      border-radius: 50%;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.8); }
+    }
+
+    h1 {
+      font-family: 'Syne', sans-serif;
+      font-size: clamp(32px, 6vw, 56px);
+      font-weight: 800;
+      line-height: 1.05;
+      letter-spacing: -1px;
+      margin-bottom: 1.25rem;
+    }
+
+    h1 .grad {
+      background: linear-gradient(135deg, #a78bfa, #d44aff, #5b3ff8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .kp-sub {
+      font-size: 16px;
+      color: rgba(255, 255, 255, 0.55);
+      line-height: 1.7;
+      margin-bottom: 2rem;
+      font-weight: 300;
+    }
+
+    .kp-sub strong {
+      color: rgba(255, 255, 255, 0.85);
+      font-weight: 500;
+    }
+
+    .kp-flags {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+    }
+
+    .kp-flag-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 50px;
+      padding: 5px 12px;
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.5);
+    }
+
+    .kp-cta-group {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 1rem;
+    }
+
+    .kp-btn-main {
+      display: inline-block;
+      background: linear-gradient(135deg, #5b3ff8, #d44aff);
+      border: none;
+      color: #fff;
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: 16px;
+      padding: 18px 48px;
+      border-radius: 50px;
+      cursor: pointer;
+      text-decoration: none;
+      transition: transform 0.2s, opacity 0.2s;
+    }
+
+    .kp-btn-main:hover { transform: scale(1.03); opacity: 0.92; }
+
+    .kp-trust {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.3);
+    }
+
+    .kp-services {
+      position: relative;
+      z-index: 10;
+      width: 100%;
+      max-width: 900px;
+      margin-top: 3.5rem;
+    }
+
+    .kp-services-label {
+      text-align: center;
+      font-size: 11px;
+      letter-spacing: 2px;
+      color: rgba(255, 255, 255, 0.25);
+      text-transform: uppercase;
+      margin-bottom: 1.5rem;
+    }
+
+    .kp-orbit {
+      position: relative;
+      height: 260px;
+      width: 100%;
+      overflow: hidden;
+    }
+
+    .kp-card-track {
+      position: absolute;
+      top: 0;
+      left: 0;
+      display: flex;
+      gap: 14px;
+      animation: scrollLeft 28s linear infinite;
+      width: max-content;
+    }
+
+    .kp-card-track-rev {
+      position: absolute;
+      top: 130px;
+      left: 0;
+      display: flex;
+      gap: 14px;
+      animation: scrollRight 22s linear infinite;
+      width: max-content;
+    }
+
+    @keyframes scrollLeft {
+      from { transform: translateX(0); }
+      to { transform: translateX(-50%); }
+    }
+
+    @keyframes scrollRight {
+      from { transform: translateX(-50%); }
+      to { transform: translateX(0); }
+    }
+
+    .kp-card {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 16px;
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      white-space: nowrap;
+      flex-shrink: 0;
+      transition: border-color 0.3s;
+    }
+
+    .kp-card:hover { border-color: rgba(167, 139, 250, 0.35); }
+
+    .kp-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+
+    .ic-purple { background: rgba(91, 63, 248, 0.25); }
+    .ic-pink   { background: rgba(212, 74, 255, 0.25); }
+    .ic-blue   { background: rgba(58, 134, 255, 0.25); }
+    .ic-teal   { background: rgba(20, 184, 166, 0.25); }
+    .ic-amber  { background: rgba(245, 158, 11, 0.25); }
+    .ic-green  { background: rgba(34, 197, 94, 0.25); }
+
+    .kp-card-name {
+      font-family: 'Syne', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      color: rgba(255, 255, 255, 0.9);
+    }
+
+    .kp-card-desc {
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.35);
+      margin-top: 2px;
+    }
+
+    .kp-stats {
+      position: relative;
+      z-index: 10;
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-top: 3rem;
+      width: 100%;
+      max-width: 900px;
+    }
+
+    .kp-stat {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 14px;
+      padding: 18px 28px;
+      text-align: center;
+      flex: 1;
+      min-width: 130px;
+    }
+
+    .kp-stat-num {
+      font-family: 'Syne', sans-serif;
+      font-size: 26px;
+      font-weight: 800;
+      background: linear-gradient(135deg, #a78bfa, #d44aff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .kp-stat-label {
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.35);
+      margin-top: 4px;
+    }
+
+    footer {
+      position: relative;
+      z-index: 10;
+      margin-top: 3rem;
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.2);
+      text-align: center;
+      padding-bottom: 2rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="kp-canvas">
+
+    <div class="kp-bg">
+      <div class="kp-blob kp-blob-1"></div>
+      <div class="kp-blob kp-blob-2"></div>
+      <div class="kp-blob kp-blob-3"></div>
+    </div>
+
+    <nav>
+      <a href="#" class="kp-logo">Konekta<span>Pay</span></a>
+      <a href="https://docs.google.com/forms/d/e/1FAIpQLSf7Yh_zq9x39HhwmBKo_Ks6tQ4lnp08VPpc3OPVD25KTQKiuw/viewform" target="_blank" class="kp-nav-cta">Entrar na lista</a>
+    </nav>
+
+    <div class="kp-hero">
+      <div class="kp-badge">
+        <div class="kp-dot"></div>
+        Em breve na Guiné-Bissau
+      </div>
+
+      <h1>
+        O dinheiro dos Guineenses<br>
+        move-se em <span class="grad">segundos</span>
+      </h1>
+
+      <p class="kp-sub">
+        Transferências, pagamentos e muito mais —<br>
+        feito para <strong>todos os Guineenses</strong>,<br>dentro e fora do país.
+      </p>
+
+      <div class="kp-flags">
+        <div class="kp-flag-chip">🇬🇼 Bissau</div>
+        <div class="kp-flag-chip">🇵🇹 Portugal</div>
+        <div class="kp-flag-chip">🇫🇷 França</div>
+        <div class="kp-flag-chip">🇸🇳 Senegal</div>
+        <div class="kp-flag-chip">🇺🇸 EUA</div>
+        <div class="kp-flag-chip">🌍 e mais...</div>
+      </div>
+
+      <div class="kp-cta-group">
+        <a href="https://docs.google.com/forms/d/e/1FAIpQLSf7Yh_zq9x39HhwmBKo_Ks6tQ4lnp08VPpc3OPVD25KTQKiuw/viewform" target="_blank" class="kp-btn-main">
+          Quero acesso antecipado →
+        </a>
+        <p class="kp-trust">Gratuito · Sem spam · Cancela quando quiseres</p>
+      </div>
+    </div>
+
+    <div class="kp-services">
+      <p class="kp-services-label">Tudo numa só plataforma</p>
+      <div class="kp-orbit">
+        <div class="kp-card-track" id="track1"></div>
+        <div class="kp-card-track-rev" id="track2"></div>
+      </div>
+    </div>
+
+    <div class="kp-stats">
+      <div class="kp-stat">
+        <div class="kp-stat-num">0%</div>
+        <div class="kp-stat-label">Taxas de abertura</div>
+      </div>
+      <div class="kp-stat">
+        <div class="kp-stat-num">&lt;10s</div>
+        <div class="kp-stat-label">Tempo de envio</div>
+      </div>
+      <div class="kp-stat">
+        <div class="kp-stat-num">+15</div>
+        <div class="kp-stat-label">Países suportados</div>
+      </div>
+      <div class="kp-stat">
+        <div class="kp-stat-num">24/7</div>
+        <div class="kp-stat-label">Disponível sempre</div>
+      </div>
+    </div>
+
+    <footer>
+      © 2026 Konekta Pay · Bissau, Guiné-Bissau · Em fase de validação
+    </footer>
+
+  </div>
+
+  <script>
+    const services1 = [
+      { icon: '💸', name: 'Transferências', desc: 'Portugal → Guiné em segundos', cls: 'ic-purple' },
+      { icon: '📱', name: 'Mobile Money', desc: 'Ligado ao Orange Money', cls: 'ic-pink' },
+      { icon: '🏦', name: 'Conta Digital', desc: 'Sem banco físico necessário', cls: 'ic-blue' },
+      { icon: '💳', name: 'Cartão Virtual', desc: 'Compras online seguras', cls: 'ic-teal' },
+      { icon: '📊', name: 'Analytics', desc: 'Controla os teus gastos', cls: 'ic-amber' },
+      { icon: '🤝', name: 'Negócios B2B', desc: 'Paga fornecedores', cls: 'ic-green' },
+      { icon: '🔒', name: 'Segurança', desc: 'Encriptação de ponta', cls: 'ic-purple' },
+      { icon: '🌍', name: 'Multi-divisa', desc: 'EUR, XOF, USD e mais', cls: 'ic-blue' },
+    ];
+
+    const services2 = [
+      { icon: '🚀', name: 'Pagamentos QR', desc: 'Scan & paga no local', cls: 'ic-pink' },
+      { icon: '🎯', name: 'Remessas Rápidas', desc: 'Sem intermediários', cls: 'ic-teal' },
+      { icon: '📦', name: 'Logística', desc: 'Rastreia as tuas encomendas', cls: 'ic-amber' },
+      { icon: '💡', name: 'Faturas', desc: 'Eletricidade, água, TV', cls: 'ic-green' },
+      { icon: '📈', name: 'Investimento', desc: 'Faz crescer o teu dinheiro', cls: 'ic-purple' },
+      { icon: '🛒', name: 'E-commerce', desc: 'Vende online na Guiné', cls: 'ic-pink' },
+      { icon: '🎓', name: 'Propinas', desc: 'Paga escola à distância', cls: 'ic-blue' },
+      { icon: '⚡', name: 'Recarga', desc: 'Top-up de telemóvel', cls: 'ic-teal' },
+    ];
+
+    function buildCards(items) {
+      return [...items, ...items].map(s =>
+        `<div class="kp-card">
+          <div class="kp-icon ${s.cls}">${s.icon}</div>
+          <div>
+            <div class="kp-card-name">${s.name}</div>
+            <div class="kp-card-desc">${s.desc}</div>
+          </div>
+        </div>`
+      ).join('');
+    }
+
+    document.getElementById('track1').innerHTML = buildCards(services1);
+    document.getElementById('track2').innerHTML = buildCards(services2);
+  </script>
+</body>
+</html>
